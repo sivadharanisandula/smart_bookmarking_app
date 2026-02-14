@@ -1,33 +1,55 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 
-export default function LoginPage() {
+export default function Dashboard() {
+  const [bookmarks, setBookmarks] = useState<any[]>([])
   const supabase = createClient()
 
-  const handleLogin = async () => {
-    const origin = window.location.origin
-    
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${origin}/auth/callback`,
-      },
-    })
+  // 1. Function to fetch data
+  const fetchBookmarks = async () => {
+    const { data } = await supabase
+      .from('bookmarks')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setBookmarks(data)
   }
 
+  useEffect(() => {
+    fetchBookmarks()
+
+    // 2. REAL-TIME SUBSCRIPTION
+    // This listens for any change in the 'bookmarks' table
+    const channel = supabase
+      .channel('realtime-bookmarks')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookmarks' },
+        (payload) => {
+          console.log('Change received!', payload)
+          fetchBookmarks() // Refresh the list automatically when a change happens
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   return (
-    <div className="min-h-screen bg-[#08090d] flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-[#11131a] border border-slate-800 p-10 rounded-[3rem] text-center shadow-2xl">
-        <h1 className="text-3xl font-black text-white uppercase mb-4 tracking-tighter">SmartMark</h1>
-        <p className="text-slate-500 mb-10 text-sm">Organize your web with intelligence.</p>
-        
-        <button 
-          onClick={handleLogin}
-          className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-4 rounded-2xl hover:bg-slate-100 transition-all active:scale-95"
-        >
-          <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="G" />
-          Continue with Google
-        </button>
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6 text-white">Your Bookmarks</h1>
+      
+      {/* Your existing Add Bookmark Input/Form goes here */}
+
+      <div className="grid gap-4">
+        {bookmarks.map((b) => (
+          <div key={b.id} className="p-4 bg-[#11131a] border border-slate-800 rounded-xl">
+            <h3 className="text-white font-medium">{b.title}</h3>
+            <p className="text-slate-400 text-sm">{b.url}</p>
+          </div>
+        ))}
       </div>
     </div>
   )
