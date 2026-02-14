@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
 
   if (code) {
     const cookieStore = await cookies()
@@ -27,10 +26,10 @@ export async function GET(request: Request) {
     
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      // origin will be http://localhost:3000 or https://your-app.vercel.app
+      return NextResponse.redirect(`${origin}/dashboard`)
     }
   }
 
-  // Return the user to an error page with instructions if exchange fails
-  return NextResponse.redirect(`${origin}/login?error=auth-failed`)
+  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
